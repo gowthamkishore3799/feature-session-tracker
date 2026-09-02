@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<meta
+			name="description"
+			content="Track feature tasks and connect local Codex and Claude Code threads."
+		/>
+		<title>Feature tracker</title>
+		<link rel="icon" href="/favicon.svg" />
+		<link rel="stylesheet" href="/styles.css" />
+	</head>
+	<body>
+		<div class="app-shell">
+			<header class="topbar">
+				<div class="brand-lockup">
+					<div class="brand-mark" aria-hidden="true">
+						<span></span><span></span><span></span>
+					</div>
+					<div>
+						<p class="brand-name">Feature tracker</p>
+						<p class="brand-tagline">Plan the work. Keep the context.</p>
+					</div>
+				</div>
+				<div class="topbar-actions">
+					<div class="sync-status" id="sync-status" aria-live="polite">
+						<span class="sync-dot"></span>
+						<span>Scanning threads</span>
+					</div>
+					<button
+						class="button button-secondary"
+						id="refresh-button"
+						type="button"
+					>
+						Refresh
+					</button>
+				</div>
+			</header>
+
+			<div class="workspace" id="workspace">
+				<aside class="feature-sidebar" aria-label="Features">
+					<div class="panel-heading">
+						<div>
+							<p class="eyebrow">Your work</p>
+							<h2>Features</h2>
+						</div>
+						<button
+							class="icon-button"
+							id="new-feature-button"
+							type="button"
+							aria-label="Create feature"
+							title="Create feature"
+						>
+							<span aria-hidden="true">+</span>
+						</button>
+					</div>
+					<nav class="feature-list" id="feature-list"></nav>
+					<div class="privacy-note">
+						<span class="privacy-icon" aria-hidden="true">⌂</span>
+						<div>
+							<strong>Stays on this Mac</strong>
+							<span>Only thread titles and metadata are shown.</span>
+						</div>
+					</div>
+				</aside>
+
+				<main class="feature-main" id="feature-main"></main>
+
+				<aside
+					class="session-sidebar"
+					id="session-sidebar"
+					aria-label="Agent threads"
+				>
+					<div class="panel-heading session-heading">
+						<div>
+							<p class="eyebrow">Local activity</p>
+							<h2>Agent threads</h2>
+						</div>
+						<div class="session-heading-actions">
+							<span class="count-badge" id="session-count">0</span>
+							<button
+								class="icon-button session-sidebar-toggle"
+								id="session-sidebar-toggle"
+								type="button"
+								aria-controls="session-sidebar"
+								aria-expanded="true"
+								aria-label="Collapse agent threads"
+								title="Collapse agent threads"
+							>
+								<span id="session-sidebar-toggle-icon" aria-hidden="true"
+									>›</span
+								>
+							</button>
+						</div>
+					</div>
+					<div id="linking-context"></div>
+					<label class="search-field">
+						<span class="sr-only">Search threads</span>
+						<svg viewBox="0 0 20 20" aria-hidden="true">
+							<path
+								d="m17.4 16-3.2-3.2a6.5 6.5 0 1 0-1.4 1.4l3.2 3.2a1 1 0 0 0 1.4-1.4ZM4.5 9a4.5 4.5 0 1 1 9 0 4.5 4.5 0 0 1-9 0Z"
+							/>
+						</svg>
+						<input
+							id="session-search"
+							type="search"
+							placeholder="Search threads"
+							autocomplete="off"
+						/>
+					</label>
+					<div
+						class="provider-filter"
+						id="provider-filter"
+						aria-label="Filter threads"
+					>
+						<button
+							class="filter-chip is-active"
+							data-provider="all"
+							type="button"
+						>
+							All
+						</button>
+						<button class="filter-chip" data-provider="codex" type="button">
+							<span class="provider-dot codex"></span>Codex
+						</button>
+						<button class="filter-chip" data-provider="claude" type="button">
+							<span class="provider-dot claude"></span>Claude Code
+						</button>
+					</div>
+					<div class="session-list" id="session-list"></div>
+				</aside>
+			</div>
+		</div>
+
+		<dialog class="modal" id="feature-dialog">
+			<form method="dialog" id="feature-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Feature map</p>
+						<h2 id="feature-dialog-title">Create feature</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						formnovalidate
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<label class="field">
+						<span>Feature name</span>
+						<input
+							name="title"
+							maxlength="120"
+							required
+							placeholder="Example: Faster review setup"
+						/>
+					</label>
+					<label class="field">
+						<span>Outcome</span>
+						<textarea
+							name="description"
+							maxlength="2000"
+							rows="3"
+							placeholder="What should be true when this feature is done?"
+						></textarea>
+					</label>
+					<label class="field" id="initial-items-field">
+						<span>Initial tasks</span>
+						<textarea
+							name="workItems"
+							rows="6"
+							placeholder="Define the user flow&#10;Build the core experience&#10;Add tests and polish"
+						></textarea>
+						<small>Enter one task per line. You can add more later.</small>
+					</label>
+				</div>
+				<div class="modal-footer">
+					<button
+						class="button button-secondary"
+						value="cancel"
+						formnovalidate
+						type="submit"
+					>
+						Cancel
+					</button>
+					<button
+						class="button button-primary"
+						id="save-feature-button"
+						value="default"
+						type="submit"
+					>
+						Create feature
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal modal-small" id="task-add-dialog">
+			<form method="dialog" id="task-add-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Feature breakdown</p>
+						<h2>Add tasks</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<label class="field">
+						<span>Tasks</span>
+						<textarea
+							name="workItems"
+							rows="8"
+							required
+							placeholder="Enter one task per line"
+						></textarea>
+						<small>Each line becomes a separate card in Planned.</small>
+					</label>
+				</div>
+				<div class="modal-footer">
+					<button class="button button-secondary" value="cancel" type="submit">
+						Cancel
+					</button>
+					<button class="button button-primary" value="default" type="submit">
+						Add tasks
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal" id="task-detail-dialog">
+			<form method="dialog" id="task-detail-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Task details</p>
+						<h2>Edit task</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<label class="field">
+						<span>Task name</span>
+						<input name="title" maxlength="160" required />
+					</label>
+					<label class="field">
+						<span>Notes</span>
+						<textarea
+							name="notes"
+							maxlength="2000"
+							rows="5"
+							placeholder="Add acceptance criteria, decisions, or next steps"
+						></textarea>
+					</label>
+					<label class="field">
+						<span>Workspace folder</span>
+						<input
+							name="workspacePath"
+							maxlength="4096"
+							placeholder="/Users/you/work/project"
+						/>
+						<small
+							>New Codex and Claude Code sessions for this task start
+							here.</small
+						>
+					</label>
+					<div class="task-detail-grid">
+						<label class="field">
+							<span>Status</span>
+							<select name="status">
+								<option value="planned">Planned</option>
+								<option value="in_progress">In progress</option>
+								<option value="blocked">Blocked</option>
+								<option value="done">Done</option>
+							</select>
+						</label>
+						<label class="field">
+							<span>Priority</span>
+							<select name="priority">
+								<option value="low">Low</option>
+								<option value="medium">Medium</option>
+								<option value="high">High</option>
+							</select>
+						</label>
+						<label class="field">
+							<span>Preferred agent</span>
+							<select name="agent">
+								<option value="either">Any agent</option>
+								<option value="codex">Codex</option>
+								<option value="claude">Claude Code</option>
+							</select>
+						</label>
+					</div>
+					<label class="automation-option">
+						<input name="autoLinkForks" type="checkbox" />
+						<span>
+							<strong>Automatically link thread forks</strong>
+							<small
+								>When a linked Codex or Claude Code thread is forked, attach the
+								related thread to this task.</small
+							>
+						</span>
+					</label>
+					<section
+						class="task-thread-section"
+						aria-labelledby="linked-threads-heading"
+					>
+						<div class="task-thread-heading">
+							<div>
+								<h3 id="linked-threads-heading">Linked threads</h3>
+								<p>
+									Rename threads here or attach more from your local history.
+								</p>
+							</div>
+							<button
+								class="button button-secondary"
+								data-action="focus-thread-linker"
+								type="button"
+							>
+								Link thread
+							</button>
+						</div>
+						<div class="task-thread-list" id="task-thread-list"></div>
+					</section>
+					<section
+						class="task-thread-section"
+						aria-labelledby="linked-prs-heading"
+					>
+						<div class="task-thread-heading">
+							<div>
+								<h3 id="linked-prs-heading">Linked pull requests</h3>
+								<p>Keep every pull request for this task in one place.</p>
+							</div>
+							<button
+								class="button button-secondary"
+								data-action="open-pr-dialog"
+								type="button"
+							>
+								Link PR
+							</button>
+						</div>
+						<div class="task-pr-list" id="task-pr-list"></div>
+					</section>
+				</div>
+				<div class="modal-footer">
+					<button
+						class="button button-secondary task-archive-button"
+						data-action="archive-item"
+						id="task-archive-button"
+						type="button"
+					>
+						Archive task
+					</button>
+					<button class="button button-secondary" value="cancel" type="submit">
+						Cancel
+					</button>
+					<button class="button button-primary" value="default" type="submit">
+						Save changes
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal modal-small" id="pull-request-dialog">
+			<form method="dialog" id="pull-request-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Task work</p>
+						<h2>Link pull requests</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						formnovalidate
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<p class="dialog-description" id="pull-request-description"></p>
+					<div class="pull-request-fields" id="pull-request-fields"></div>
+					<button
+						class="button button-secondary pull-request-add-button"
+						id="add-pull-request-button"
+						type="button"
+					>
+						<span aria-hidden="true">+</span>
+						Add another PR
+					</button>
+				</div>
+				<div class="modal-footer">
+					<button
+						class="button button-secondary"
+						value="cancel"
+						formnovalidate
+						type="submit"
+					>
+						Cancel
+					</button>
+					<button
+						class="button button-primary"
+						id="link-pull-requests-button"
+						value="default"
+						type="submit"
+					>
+						Link PR
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal" id="pr-agent-dialog">
+			<form method="dialog" id="pr-agent-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Pull request</p>
+						<h2>PR agent</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						formnovalidate
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body pr-agent-body">
+					<div>
+						<p class="dialog-description" id="pr-agent-description"></p>
+						<p class="pr-agent-intro">
+							A check reads this PR's current GitHub status. Add a Cloud Run
+							target to also inspect its ready revision and ERROR logs from the
+							last 30 minutes.
+						</p>
+					</div>
+					<fieldset class="pr-agent-target">
+						<legend>Cloud Run target <small>Optional</small></legend>
+						<div class="pr-agent-target-grid">
+							<label class="field">
+								<span>GCP project</span>
+								<input name="project" maxlength="63" placeholder="my-project" />
+							</label>
+							<label class="field">
+								<span>Region</span>
+								<input name="region" maxlength="63" placeholder="us-central1" />
+							</label>
+							<label class="field pr-agent-service-field">
+								<span>Cloud Run service</span>
+								<input
+									name="service"
+									maxlength="63"
+									placeholder="api-service"
+								/>
+							</label>
+						</div>
+						<p>
+							Uses your signed-in local tools. The active gcloud project must
+							match this project; credentials are never saved.
+						</p>
+					</fieldset>
+					<div
+						class="pr-agent-result"
+						id="pr-agent-result"
+						aria-live="polite"
+					></div>
+				</div>
+				<div class="modal-footer">
+					<button
+						class="button button-secondary"
+						value="cancel"
+						formnovalidate
+						type="submit"
+					>
+						Close
+					</button>
+					<button
+						class="button button-primary"
+						id="run-pr-agent-button"
+						value="default"
+						type="submit"
+					>
+						Run check
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal" id="pr-monitor-dialog">
+			<form method="dialog" id="pr-monitor-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Vercel Sandbox</p>
+						<h2>Run Codex PR monitor</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						formnovalidate
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<p class="dialog-description" id="pr-monitor-description"></p>
+					<label class="field">
+						<span>Local workspace reference</span>
+						<input
+							name="workspacePath"
+							maxlength="4096"
+							required
+							placeholder="/Users/you/work/project"
+						/>
+						<small
+							>The local files stay on this Mac and are not uploaded.</small
+						>
+					</label>
+					<label class="field">
+						<span>Monitor instructions</span>
+						<textarea
+							name="instructions"
+							maxlength="4000"
+							rows="6"
+							placeholder="Tell Codex what conditions or errors matter for this PR"
+						></textarea>
+						<small
+							>The tracker creates an isolated Vercel Sandbox, starts Codex CLI
+							noninteractively, and stores the sandbox run with this PR.
+							Compatible OpenAI keys are rotated from the reviewer app's local
+							settings and never copied into the sandbox.</small
+						>
+					</label>
+					<div class="pr-monitor-target" id="pr-monitor-target"></div>
+					<section
+						class="pr-monitor-activity"
+						aria-labelledby="pr-monitor-activity-title"
+					>
+						<div class="pr-monitor-activity-heading">
+							<strong id="pr-monitor-activity-title">Agent activity</strong>
+							<span
+								>Inspect Codex progress summaries, actions, and errors. Private
+								internal reasoning is not shown.</span
+							>
+						</div>
+						<div id="pr-monitor-runs"></div>
+					</section>
+					<div class="pr-monitor-alert-note">
+						<span class="pr-monitor-alert-dot" aria-hidden="true"></span>
+						<div>
+							<strong>iPhone issue alerts enabled</strong>
+							<span
+								>The sandbox returns a structured verified result. This Mac then
+								uses the installed notify skill for new actionable issues.</span
+							>
+						</div>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button
+						class="button button-secondary"
+						value="cancel"
+						formnovalidate
+						type="submit"
+					>
+						Cancel
+					</button>
+					<button
+						class="button button-primary"
+						id="start-pr-monitor-button"
+						value="default"
+						type="submit"
+					>
+						Start in Sandbox
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal" id="team-update-dialog">
+			<form method="dialog" id="team-update-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow">Feature activity</p>
+						<h2>Team update</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<p class="team-update-intro">
+						Choose an inclusive date range to see task additions and status
+						changes for this feature.
+					</p>
+					<div class="date-filter-grid">
+						<label class="field">
+							<span>From</span>
+							<input id="team-update-from" name="from" type="date" required />
+						</label>
+						<label class="field">
+							<span>Through</span>
+							<input id="team-update-to" name="to" type="date" required />
+						</label>
+					</div>
+					<div class="team-update-summary" id="team-update-summary"></div>
+					<div
+						class="team-update-list"
+						id="team-update-list"
+						aria-live="polite"
+					></div>
+				</div>
+				<div class="modal-footer">
+					<button class="button button-secondary" value="cancel" type="submit">
+						Close
+					</button>
+					<button
+						class="button button-primary"
+						id="copy-team-update-button"
+						type="button"
+					>
+						Copy update
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<dialog class="modal modal-small" id="session-launch-dialog">
+			<form method="dialog" id="session-launch-form">
+				<div class="modal-header">
+					<div>
+						<p class="eyebrow" id="session-launch-provider">Agent session</p>
+						<h2 id="session-launch-title">Start session</h2>
+					</div>
+					<button
+						class="icon-button modal-close"
+						value="cancel"
+						aria-label="Close"
+						type="submit"
+					>
+						<span aria-hidden="true">×</span>
+					</button>
+				</div>
+				<div class="modal-body">
+					<p class="launch-description" id="session-launch-description"></p>
+					<label class="field">
+						<span>Workspace folder</span>
+						<input
+							name="workspacePath"
+							maxlength="4096"
+							required
+							placeholder="/Users/you/work/project"
+						/>
+					</label>
+					<label class="field">
+						<span>Extra instructions</span>
+						<textarea
+							name="context"
+							maxlength="4000"
+							rows="5"
+							placeholder="Add details you want the agent to know"
+						></textarea>
+						<small
+							>The task, feature outcome, and these instructions become the
+							first message.</small
+						>
+					</label>
+					<div class="launch-note">
+						<span class="provider-dot" id="session-launch-dot"></span>
+						<span id="session-launch-note"
+							>The new thread links to this task automatically.</span
+						>
+					</div>
+				</div>
+				<div class="modal-footer">
+					<button class="button button-secondary" value="cancel" type="submit">
+						Cancel
+					</button>
+					<button
+						class="button button-primary"
+						id="start-session-button"
+						value="default"
+						type="submit"
+					>
+						Start session
+					</button>
+				</div>
+			</form>
+		</dialog>
+
+		<div class="toast" id="toast" role="status" aria-live="polite"></div>
+		<script src="/app.js" defer></script>
+	</body>
+</html>

@@ -1,0 +1,23 @@
+{
+	"name": "feature-session-tracker",
+	"version": "0.1.0",
+	"private": true,
+	"description": "A local task, coding-agent session, and pull-request tracker.",
+	"type": "module",
+	"scripts": {
+		"start": "pnpm feature-sessions",
+		"feature-sessions": "pnpm feature-sessions:db && node server.mjs",
+		"feature-sessions:db": "docker compose -f compose.yaml up -d --wait",
+		"feature-sessions:db:stop": "docker compose -f compose.yaml stop",
+		"feature-sessions:vercel-auth": "node vercel-sandbox-auth.mjs",
+		"test": "node --test test/tracker.test.mjs"
+	},
+	"dependencies": {
+		"@vercel/sandbox": "2.9.2",
+		"pg": "8.20.0"
+	},
+	"engines": {
+		"node": ">=22.13.0"
+	},
+	"packageManager": "pnpm@11.9.0+sha512.bd682d5d03fe525ef7c9fd6780c6884d1e756ac4c9c9fe00c538782824310dcf90e3ddc4f53835f06dfaebd5085e41855e0bcbb3b60de2ac5bbab89e5036f03b"
+}

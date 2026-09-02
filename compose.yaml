@@ -1,0 +1,25 @@
+name: feature-session-tracker
+
+services:
+  postgres:
+    image: postgres:16
+    environment:
+      POSTGRES_DB: feature_session_tracker
+      POSTGRES_PASSWORD: feature_session_tracker_local
+      POSTGRES_USER: feature_session_tracker
+    ports:
+      - "127.0.0.1:55432:5432"
+    volumes:
+      - feature_session_tracker_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+        - CMD-SHELL
+        - pg_isready -U feature_session_tracker -d feature_session_tracker
+      interval: 2s
+      timeout: 3s
+      retries: 15
+    restart: unless-stopped
+
+volumes:
+  feature_session_tracker_pg_data:
+    name: feature_session_tracker_pg_data
